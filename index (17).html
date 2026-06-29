@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PMS — Pharmacy Management System</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161922;
+    --panel-2: #1d212c;
+    --border: #2a2f3a;
+    --text: #e8eaed;
+    --text-dim: #9aa1ad;
+    --accent: #3b82f6;
+    --accent-dim: #1d4ed8;
+    --good: #22c55e;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+    --radius: 10px;
+    font-size: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ---------- LOGIN SCREEN ---------- */
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .login-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+
+  .login-card h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .login-card .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 28px;
+  }
+
+  .pin-display {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .pin-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    transition: all 0.15s;
+  }
+
+  .pin-dot.filled {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .pin-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .pin-key {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 1.3rem;
+    font-weight: 500;
+    padding: 18px 0;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .pin-key:active { background: var(--accent-dim); }
+
+  .pin-key.action {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .login-error {
+    color: var(--bad);
+    font-size: 0.85rem;
+    margin-top: 16px;
+    min-height: 1.2em;
+  }
+
+  /* ---------- APP SHELL ---------- */
+  #appShell { display: none; min-height: 100vh; }
+
+  header.topbar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .topbar .brand { font-weight: 700; font-size: 1.05rem; }
+  .topbar .brand span { color: var(--accent); }
+
+  .topbar .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .role-badge {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+
+  .logout-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .logout-btn:hover { color: var(--text); border-color: var(--text-dim); }
+
+  nav.tabbar {
+    display: flex;
+    gap: 4px;
+    padding: 10px 20px 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 10px 16px;
+    font-size: 0.88rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+
+  .tab-btn.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  main {
+    padding: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .page-header h2 { font-size: 1.2rem; font-weight: 600; }
+
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--accent-dim); }
+  .btn.secondary {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .placeholder-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-dim);
+  }
+
+  @media (min-width: 700px) {
+    .pin-display { gap: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============== LOGIN SCREEN ============== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>Pharmacy Management</h1>
+    <p class="subtitle">Enter your staff PIN to continue</p>
+
+    <div class="pin-display" id="pinDisplay">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+
+    <div class="pin-pad" id="pinPad">
+      <button class="pin-key" data-key="1">1</button>
+      <button class="pin-key" data-key="2">2</button>
+      <button class="pin-key" data-key="3">3</button>
+      <button class="pin-key" data-key="4">4</button>
+      <button class="pin-key" data-key="5">5</button>
+      <button class="pin-key" data-key="6">6</button>
+      <button class="pin-key" data-key="7">7</button>
+      <button class="pin-key" data-key="8">8</button>
+      <button class="pin-key" data-key="9">9</button>
+      <button class="pin-key action" data-key="clear">Clear</button>
+      <button class="pin-key" data-key="0">0</button>
+      <button class="pin-key action" data-key="back">⌫</button>
+    </div>
+
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ============== APP SHELL ============== -->
+<div id="appShell">
+  <header class="topbar">
+    <div class="brand">PMS <span>•</span> Pharmacy</div>
+    <div class="user-info">
+      <span class="role-badge" id="userRole">—</span>
+      <span id="userName">—</span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tab-btn active" data-page="stock">Stock</button>
+    <button class="tab-btn" data-page="medications">Medications</button>
+    <button class="tab-btn" data-page="prescriptions">Prescriptions</button>
+    <button class="tab-btn" data-page="customers">Customers</button>
+    <button class="tab-btn" data-page="orders">Orders</button>
+    <button class="tab-btn" data-page="notifications">Notifications</button>
+  </nav>
+
+  <main>
+    <div class="page active" id="page-stock">
+      <div class="page-header">
+        <h2>Stock</h2>
+        <button class="btn">Adjust stock</button>
+      </div>
+      <div class="placeholder-card">Stock table loads here next.</div>
+    </div>
+
+    <div class="page" id="page-medications">
+      <div class="page-header"><h2>Medications</h2></div>
+      <div class="placeholder-card">Medications list — coming next.</div>
+    </div>
+
+    <div class="page" id="page-prescriptions">
+      <div class="page-header"><h2>Prescriptions</h2></div>
+      <div class="placeholder-card">Prescriptions — coming soon.</div>
+    </div>
+
+    <div class="page" id="page-customers">
+      <div class="page-header"><h2>Customers</h2></div>
+      <div class="placeholder-card">Customers — coming soon.</div>
+    </div>
+
+    <div class="page" id="page-orders">
+      <div class="page-header"><h2>Orders</h2></div>
+      <div class="placeholder-card">Orders — coming soon.</div>
+    </div>
+
+    <div class="page" id="page-notifications">
+      <div class="page-header"><h2>Notifications</h2></div>
+      <div class="placeholder-card">Notifications — coming soon.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============================================================
+// SUPABASE CONFIG — same project as ScanCount
+// ============================================================
+const SUPABASE_URL = "https://ythuumovzyrposucuvpv.supabase.co";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_ANON_KEY_HERE"; // <-- replace this
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  db: { schema: 'pms' }
+});
+
+// ============================================================
+// SESSION STATE (in-memory only — no localStorage per session,
+// re-login required on page reload, same as ScanCount pattern
+// would allow; swap to sessionStorage below if you want persistence)
+// ============================================================
+let currentStaff = null; // { staff_id, full_name, role }
+let pinBuffer = "";
+
+// ============================================================
+// PIN PAD LOGIC
+// ============================================================
+const pinDisplay = document.getElementById('pinDisplay');
+const loginError = document.getElementById('loginError');
+
+function renderPinDots() {
+  const dots = pinDisplay.querySelectorAll('.pin-dot');
+  dots.forEach((dot, i) => {
+    dot.classList.toggle('filled', i < pinBuffer.length);
+  });
+}
+
+async function submitPin() {
+  loginError.textContent = "";
+  const { data, error } = await sb.rpc('verify_pin', { input_pin: pinBuffer });
+
+  if (error) {
+    loginError.textContent = "Connection error. Check your setup.";
+    console.error(error);
+    pinBuffer = "";
+    renderPinDots();
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    loginError.textContent = "Incorrect PIN.";
+    pinBuffer = "";
+    renderPinDots();
+    return;
+  }
+
+  currentStaff = data[0];
+  enterApp();
+}
+
+document.getElementById('pinPad').addEventListener('click', (e) => {
+  const btn = e.target.closest('.pin-key');
+  if (!btn) return;
+  const key = btn.dataset.key;
+
+  if (key === 'clear') {
+    pinBuffer = "";
+  } else if (key === 'back') {
+    pinBuffer = pinBuffer.slice(0, -1);
+  } else {
+    if (pinBuffer.length < 4) pinBuffer += key;
+  }
+
+  renderPinDots();
+
+  if (pinBuffer.length === 4) {
+    submitPin();
+  }
+});
+
+// ============================================================
+// APP ENTRY / LOGOUT
+// ============================================================
+function enterApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  document.getElementById('userName').textContent = currentStaff.full_name;
+  document.getElementById('userRole').textContent = currentStaff.role;
+  pinBuffer = "";
+}
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  currentStaff = null;
+  pinBuffer = "";
+  renderPinDots();
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+});
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+document.getElementById('tabbar').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const target = btn.dataset.page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${target}`).classList.add('active');
+});
+</script>
+</body>
+</html>
